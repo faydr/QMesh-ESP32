@@ -19,28 +19,26 @@
 #endif
 
 BluetoothSerial SerialBT;
-//HardwareSerial Serial;
-
-
-uint8_t bt_buf[256];
-#define MAX_DEQUE_SIZE 65536
-#define MAX_WRITE_BYTES 16
-std::deque<uint8_t> rx_serial, rx_btserial;
-volatile bool bt_active;
 
 // For AP mode:
 #define SERIAL_TCP_PORT 8880
 const char *ssid = "QMesh0-WiFi";  // You will connect your phone to this Access Point
 const char *pw = "password"; // and this is the password
-IPAddress ip(192, 168, 4, 1); // From RoboRemo app, connect to this IP
+IPAddress ip(192, 168, 4, 1);
 IPAddress netmask(255, 255, 255, 0);
 WiFiServer server(SERIAL_TCP_PORT);
 
+volatile bool bt_active;
+
+#define RXD2 16
+#define TXD2 17
+
 
 void setup() {
+  Serial2.begin(230400, SERIAL_8N1, RXD2, TXD2);
+  Serial2.setRxBufferSize(4096);  
   Serial.begin(230400);
-  Serial.setRxBufferSize(4096);
-  SerialBT.begin("QMesh0-BT"); //Bluetooth device name
+  SerialBT.begin("QMesh0-BT"); // Bluetooth device name
   Serial.println("The device started, now you can pair it with bluetooth!");
   bt_active = false;
 
@@ -52,10 +50,12 @@ void setup() {
   ArduinoOTA
     .onStart([]() {
       String type;
-      if (ArduinoOTA.getCommand() == U_FLASH)
+      if (ArduinoOTA.getCommand() == U_FLASH) {
         type = "sketch";
-      else // U_SPIFFS
+      }
+      else { // U_SPIFFS
         type = "filesystem";
+      }
 
       // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
       Serial.println("Start updating " + type);
@@ -88,6 +88,11 @@ void setup() {
 }
 
 
+uint8_t bt_buf[256];
+#define MAX_DEQUE_SIZE 65536
+#define MAX_WRITE_BYTES 16
+std::deque<uint8_t> rx_serial, rx_btserial;
+
 void loop() {
   // Handle OTA
   ArduinoOTA.handle();
@@ -99,9 +104,9 @@ void loop() {
   }
   
   // First, store any received data
-  if(Serial.available()) {
-    while(Serial.available()) {
-      rx_serial.push_front(Serial.read());
+  if(Serial2.available()) {
+    while(Serial2.available()) {
+      rx_serial.push_front(Serial2.read());
       if(rx_serial.size() > MAX_DEQUE_SIZE) {
         rx_serial.clear();
       }
@@ -112,7 +117,7 @@ void loop() {
     if(SerialBT.available()) {
       while(SerialBT.available()) {
         rx_btserial.push_front(SerialBT.read());
-        if(rx_btserial.size() > MAX_DEQUE_SIZE) {
+        if(rx_btserial.size() > MAX_DEQUE_SIZE) { // Flush buffer if it overfills
           rx_btserial.clear();
         }
       }
@@ -133,7 +138,7 @@ void loop() {
       write_bytes.push_back(rx_btserial.back());
       rx_btserial.pop_back();
     }
-    Serial.write(write_bytes.data(), write_bytes.size());
+    Serial2.write(write_bytes.data(), write_bytes.size());
   }
 
   if(SerialBT.hasClient()) {
