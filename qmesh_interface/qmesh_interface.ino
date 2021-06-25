@@ -14,7 +14,6 @@ const char* ssid = "";
 const char* password =  "";
 const char* mdns_name = "QMesh-Node0";
 
-
 WiFiServer wifiServer(SERIAL_TCP_PORT);
 
 #define RXD2 16
@@ -28,6 +27,7 @@ void setup() {
 
   delay(1000);
 
+  WiFi.setHostname(mdns_name);
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -56,14 +56,14 @@ void loop() {
   if (client) {
     while (client.connected()) {
       while (client.available() > 0) {
-        Serial.println("Receiving data");
+        //Serial.println("Receiving data");
         char c = client.read();
         Serial2.write(c);
       }
       delay(10);
       if (Serial2.available()) {
         while (Serial2.available()) {
-          Serial.println("Sending data");
+          //Serial.println("Sending data");
           client.write(Serial2.read());
         }
       }
