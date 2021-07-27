@@ -8,7 +8,7 @@
 #include <esp_task_wdt.h>
 
 
-#define WDT_TIMEOUT 600
+#define WDT_TIMEOUT 10
 #define XFER_CHUNK_SIZE 256
 
 #define SERIAL_TCP_PORT 8880
@@ -62,11 +62,12 @@ void setup() {
 int last = millis();
 void loop() {
   ArduinoOTA.handle();
-  // resetting WDT every 2s
-  if (millis() - last >= 2000) {
-      Serial.println("Resetting WDT...");
-      esp_task_wdt_reset();
-      last = millis();
+
+  // resetting WDT every 1s
+  if (millis() - last >= 1000) {
+    Serial.println("Resetting WDT...");
+    esp_task_wdt_reset();
+    last = millis();
   }
   WiFiClient client = wifiServer.available();
   if (client) {
@@ -76,7 +77,7 @@ void loop() {
         //Serial.println("Receiving data");
         char c = client.read();
         Serial2.write(c);
-        if(bytes_sent++ > XFER_CHUNK_SIZE) {
+        if (bytes_sent++ > XFER_CHUNK_SIZE) {
           break;
         }
       }
@@ -85,11 +86,11 @@ void loop() {
       while (Serial2.available()) {
         //Serial.println("Sending data");
         client.write(Serial2.read());
-        if(bytes_recvd++ > XFER_CHUNK_SIZE) {
+        if (bytes_recvd++ > XFER_CHUNK_SIZE) {
           break;
         }
       }
-      if (millis() - last >= 2000) {
+      if (millis() - last >= 1000) {
         Serial.println("Resetting WDT...");
         esp_task_wdt_reset();
         last = millis();
@@ -99,24 +100,26 @@ void loop() {
     client.stop();
     Serial.println("Client disconnected");
     delay(25);
-    if(!client.connected()) {
+    if (!client.connected()) {
       int bytes_recvd = 0;
       while (Serial2.available()) {
         //Serial.println("Sending data");
         Serial2.read();
-        if(bytes_recvd++ > XFER_CHUNK_SIZE) {
-            break;
+        if (bytes_recvd++ > XFER_CHUNK_SIZE) {
+          break;
         }
       }
     }
+    // Reboot after a disconnect, to get rid of any cruft
+    while(1);
   }
   else { // Empty the serial port buffer if there's no client connected
     int bytes_recvd = 0;
     while (Serial2.available()) {
       //Serial.println("Sending data");
       Serial2.read();
-      if(bytes_recvd++ > XFER_CHUNK_SIZE) {
-          break;
+      if (bytes_recvd++ > XFER_CHUNK_SIZE) {
+        break;
       }
     }
   }
